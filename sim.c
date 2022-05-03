@@ -27,12 +27,12 @@ int signExtend(int num){
         return num;
 }
 
-typedef struct IFIDstruct{
+typedef struct IFIDstruct{ // Fetch Decode struct
 	int instr;
 	int pcplus1;
 } IFIDType;
 
-typedef struct IDEXstruct{
+typedef struct IDEXstruct{ // Decode Execute struct
 	int instr;
 	int pcplus1;
 	int readregA;
@@ -40,19 +40,19 @@ typedef struct IDEXstruct{
 	int offset;
 } IDEXType;
 
-typedef struct EXMEMstruct{
+typedef struct EXMEMstruct{ // Execute Memory struct
 	int instr;
 	int branchtarget;
 	int aluresult;
 	int readreg;
 } EXMEMType;
 
-typedef struct MEMWBstruct{
+typedef struct MEMWBstruct{ // Memory Writeback struct
 	int instr;
 	int writedata;
 } MEMWBType;
 
-typedef struct WBENDstruct{
+typedef struct WBENDstruct{ // Writeback End struct
 	int instr;
 	int writedata;
 } WBENDType;
@@ -74,6 +74,7 @@ typedef struct statestruct{
 	int branches;  /* Total number of branches executed */
 	int mispreds;  /* Number of branch mispredictions*/
 } statetype;
+
 
 int field0(int instruction){
 	return( (instruction>>19) & 0x7);
@@ -236,7 +237,7 @@ int regData(statetype* state,int reg){
 	if(reg==1){return regAHold;}
 	if(reg==2){return regBHold;}
 }
-
+// Stall if pipeline needs to wait for instruction 
 void stall(statetype* state,statetype* newstate,int regAHold,int regBHold){
 	newstate->IFID.instr   = state->IFID.instr;
 	newstate->IFID.pcplus1 = state->IFID.pcplus1;
@@ -257,6 +258,7 @@ void stall(statetype* state,statetype* newstate,int regAHold,int regBHold){
 
 }
 
+// Cleans pipeline of data
 void flush(statetype* newstate){
 	newstate->IFID.instr    = NOOPINSTRUCTION;
         newstate->IFID.pcplus1  = 0;
@@ -273,6 +275,7 @@ void flush(statetype* newstate){
         newstate->EXMEM.readreg       = 0;
 }
 
+// Pipeline Fetch
 void instrFetch(statetype* state, statetype* newstate){
         newstate->IFID.instr = state->instrmem[state->pc];
 	newstate->pc = state->pc+1;
@@ -280,6 +283,7 @@ void instrFetch(statetype* state, statetype* newstate){
         newstate->fetched = state->fetched+1;
 }
 
+// Pipeline Decode
 void instrDecode(statetype* state, statetype* newstate){
 	newstate->IDEX.instr    = state->IFID.instr;
         newstate->IDEX.pcplus1  = state->IFID.pcplus1;
@@ -288,6 +292,7 @@ void instrDecode(statetype* state, statetype* newstate){
 	newstate->IDEX.offset   = signExtend(field2(state->IFID.instr));
 }
 
+// Pipeline execute stage
 int exec(statetype* state, statetype* newstate){
 	newstate->EXMEM.instr = state->IDEX.instr;
 	newstate->EXMEM.branchtarget = state->IDEX.pcplus1 + state->IDEX.offset;
@@ -348,6 +353,7 @@ int exec(statetype* state, statetype* newstate){
 	return retired;
 }
 
+// Pipeline Memory 
 void memory(statetype* state, statetype* newstate,int retired){
 	int op = opcode(state->EXMEM.instr);
 
@@ -400,6 +406,7 @@ void memory(statetype* state, statetype* newstate,int retired){
 	}
 }
 
+// Pipeline Writeback
 void writeBack(statetype* state, statetype* newstate){
 	int op = opcode(state->MEMWB.instr);
 	newstate->WBEND.instr = state->MEMWB.instr;
@@ -414,6 +421,7 @@ void writeBack(statetype* state, statetype* newstate){
 	}
 }
 
+// Initalizes values for pipeline and runs each stage
 void run(statetype* state, statetype* newstate){
 
 	state->pc = 0;
